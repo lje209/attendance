@@ -1,25 +1,84 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
   <meta charset="utf-8">
-  <title>출퇴근 시스템</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>안테나숍 출퇴근 시스템</title>
+  <style>
+    /* 화면 전체 스타일 */
+    body {
+      font-family: -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f7f6;
+    }
+    .container {
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+    h2 { color: #333; margin-bottom: 30px; }
+    
+    /* 입력창 크게 */
+    input {
+      width: 100%;
+      padding: 15px;
+      font-size: 18px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      box-sizing: border-box;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    
+    /* 버튼 크게 */
+    button {
+      width: 100%;
+      padding: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      margin-bottom: 15px;
+    }
+    .btn-in { background-color: #2ecc71; }
+    .btn-out { background-color: #e74c3c; }
+    
+    #status {
+      margin-top: 20px;
+      font-weight: bold;
+      color: #555;
+      font-size: 18px;
+    }
+  </style>
 </head>
 <body>
 
-<h2>출퇴근 체크</h2>
+<div class="container">
+  <h2>강원 6차산업 안테나숍<br>출퇴근 체크</h2>
 
-<input type="text" id="empId" placeholder="직원번호 입력">
+  <input type="text" id="empName" placeholder="성함을 입력하세요">
 
-<button onclick="checkIn()">출근</button>
-<button onclick="checkOut()">퇴근</button>
+  <button class="btn-in" onclick="checkIn()">출근하기</button>
+  <button class="btn-out" onclick="checkOut()">퇴근하기</button>
 
-<p id="status"></p>
+  <p id="status">대기 중...</p>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
 <script>
-// 👉 여기에 아까 복사한 Firebase config 붙여넣기
 const firebaseConfig = {
   apiKey: "AIzaSyAiDkKjFQQmt_B6OMfwNK4DAMZr8DHubNo",
   authDomain: "attendance-management-sy-754bb.firebaseapp.com",
@@ -33,22 +92,16 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// 매장 위치 (예: 이마트 춘천점 → 수정 가능)
+// 이마트 춘천점 위치
 const centerLat = 37.871597;
 const centerLng = 127.746896;
-const radius = 50; // 50m
+const radius = 100; // 위치 오차 고려하여 100m로 상향
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
   const dLat = (lat2-lat1)*Math.PI/180;
   const dLon = (lon2-lon1)*Math.PI/180;
-
-  const a =
-    Math.sin(dLat/2)**2 +
-    Math.cos(lat1*Math.PI/180) *
-    Math.cos(lat2*Math.PI/180) *
-    Math.sin(dLon/2)**2;
-
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   return R * c;
 }
@@ -56,41 +109,36 @@ function getDistance(lat1, lon1, lat2, lon2) {
 function checkQR() {
   const params = new URLSearchParams(window.location.search);
   const qr = params.get("qr");
-
   if (qr !== "ok") {
-    alert("QR코드를 통해 접속하세요");
+    alert("올바른 QR코드를 통해 접속하세요.");
     return false;
   }
-
   return true;
 }
   
 function save(type, lat, lng) {
-const name = document.getElementById("empId").value.trim();
+  const name = document.getElementById("empName").value.trim(); // ID empName으로 변경
 
-if (!name) {
-  alert("직원번호 입력하세요");
-  return;
-}
+  if (!name) {
+    alert("성함을 입력해주세요.");
+    return;
+  }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date().toLocaleDateString('ko-KR');
 
   db.collection("attendance")
     .where("name", "==", name)
     .get()
     .then((querySnapshot) => {
-
       let count = 0;
-
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        const date = data.time.toDate().toISOString().split('T')[0];
-
-        if (date === today) count++;
+        const docDate = data.time.toDate().toLocaleDateString('ko-KR');
+        if (docDate === today && data.type === type) count++;
       });
 
-      if (count >= 2) {
-        alert("오늘은 이미 출퇴근 완료");
+      if (count > 0) {
+        alert("이미 오늘 " + type + " 처리가 되었습니다.");
         return;
       }
 
@@ -99,42 +147,39 @@ if (!name) {
         type: type,
         lat: lat,
         lng: lng,
-        time: new Date()
+        time: firebase.firestore.FieldValue.serverTimestamp() // 서버 시간 사용
+      }).then(() => {
+        document.getElementById("status").innerText = name + "님 " + type + " 완료 (" + new Date().toLocaleTimeString() + ")";
+        alert(name + "님 " + type + " 처리가 완료되었습니다.");
       });
-
-      document.getElementById("status").innerText = type + " 완료";
     });
 }
   
 function check(type) {
   if (!checkQR()) return;
+  
+  document.getElementById("status").innerText = "위치 확인 중...";
+  
   navigator.geolocation.getCurrentPosition(function(pos) {
-
-
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
-
     const distance = getDistance(lat, lng, centerLat, centerLng);
 
     if (distance > radius) {
-      alert("매장 근처에서만 가능합니다");
+      alert("매장 근처가 아닙니다. (현재 거리: " + Math.round(distance) + "m)");
+      document.getElementById("status").innerText = "거리 제한으로 실패";
       return;
     }
 
     save(type, lat, lng);
-
-  }, function() {
-    alert("위치 권한 허용 필요");
-  });
+  }, function(err) {
+    alert("위치 권한을 허용해야 출퇴근이 가능합니다.");
+    document.getElementById("status").innerText = "위치 권한 오류";
+  }, { enableHighAccuracy: true });
 }
 
-function checkIn() {
-  check("출근");
-}
-
-function checkOut() {
-  check("퇴근");
-}
+function checkIn() { check("출근"); }
+function checkOut() { check("퇴근"); }
 </script>
 
 </body>
