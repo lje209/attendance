@@ -10,7 +10,7 @@
       font-family: -apple-system, sans-serif;
       display: flex;
       flex-direction: column;
-      align-items: center;
+      align-items: center; 
       justify-content: center;
       height: 100vh;
       margin: 0;
@@ -93,8 +93,8 @@ const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // 이마트 춘천점 위치
-const centerLat = 37.871597;
-const centerLng = 127.746896;
+const centerLat = 37.86346;
+const centerLng = 127.7190;
 const radius = 100; // 위치 오차 고려하여 100m로 상향
 
 function getDistance(lat1, lon1, lat2, lon2) {
