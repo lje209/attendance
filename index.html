@@ -8,7 +8,7 @@
 
 <h2>출퇴근 체크</h2>
 
-<input type="text" id="name" placeholder="이름 입력"><br><br>
+<input type="text" id="empId" placeholder="직원번호 입력">
 
 <button onclick="checkIn()">출근</button>
 <button onclick="checkOut()">퇴근</button>
@@ -36,7 +36,7 @@ const db = firebase.firestore();
 // 매장 위치 (예: 이마트 춘천점 → 수정 가능)
 const centerLat = 37.871597;
 const centerLng = 127.746896;
-const radius = 50; // 100m
+const radius = 50; // 50m
 
 function getDistance(lat1, lon1, lat2, lon2) {
   const R = 6371000;
@@ -53,22 +53,63 @@ function getDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
+function checkQR() {
+  const params = new URLSearchParams(window.location.search);
+  const qr = params.get("qr");
+
+  if (qr !== "ok") {
+    alert("QR코드를 통해 접속하세요");
+    return false;
+  }
+
+  return true;
+}
+  
 function save(type, lat, lng) {
-  const name = document.getElementById("name").value;
+const name = document.getElementById("empId").value.trim();
 
-  db.collection("attendance").add({
-    name: name,
-    type: type,
-    lat: lat,
-    lng: lng,
-    time: new Date()
-  });
-
-  document.getElementById("status").innerText = type + " 완료";
+if (!name) {
+  alert("직원번호 입력하세요");
+  return;
 }
 
+  const today = new Date().toISOString().split('T')[0];
+
+  db.collection("attendance")
+    .where("name", "==", name)
+    .get()
+    .then((querySnapshot) => {
+
+      let count = 0;
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const date = data.time.toDate().toISOString().split('T')[0];
+
+        if (date === today) count++;
+      });
+
+      if (count >= 2) {
+        alert("오늘은 이미 출퇴근 완료");
+        return;
+      }
+
+      db.collection("attendance").add({
+        name: name,
+        type: type,
+        lat: lat,
+        lng: lng,
+        time: new Date()
+      });
+
+      document.getElementById("status").innerText = type + " 완료";
+    });
+}
+  
 function check(type) {
+  if (!checkQR()) return;
   navigator.geolocation.getCurrentPosition(function(pos) {
+
 
     const lat = pos.coords.latitude;
     const lng = pos.coords.longitude;
